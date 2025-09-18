@@ -155,14 +155,14 @@ func (h *Handler) ProcessUsers(c *fiber.Ctx) error {
 		"inactiveUsers":       inactiveResults,
 		"registeredNoActions": registeredNoActions,
 		"summary": fiber.Map{
-			"orphanUsersCount":         len(orphanUsers),
-			"inactiveUsersCount":       len(inactiveResults),
-			"registeredNoActionsCount": len(registeredNoActions),
-			"totalProcessed":           len(userIds),
-			"page":                     page,
-			"limit":                    limit,
-			"months":                   months,
-			"countryId":                countryId,
+			"orphanUsersCount":   len(orphanUsers),
+			"inactiveUsersCount": len(inactiveResults),
+			//"registeredNoActionsCount": len(registeredNoActions),
+			"totalProcessed": len(userIds),
+			"page":           page,
+			"limit":          limit,
+			"months":         months,
+			"countryId":      countryId,
 		},
 	}
 
