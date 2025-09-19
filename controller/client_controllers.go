@@ -103,7 +103,6 @@ func (c *Controller) GetLastActionFromIndices(userId string, indicesList []strin
 	return best, nil
 }
 
-// CheckUserActionsInterval проверяет интервал между действиями.
 func (c *Controller) CheckUserActionsInterval(actions []map[string]interface{}, frontInterval int) bool {
 	if len(actions) == 0 {
 		return false
@@ -133,16 +132,43 @@ func (c *Controller) CheckUserActionsInterval(actions []map[string]interface{}, 
 	return diffMonths >= frontInterval
 }
 
-// BuildClientData создает объект ClientData из данных и действий.
-func (c *Controller) BuildClientData(clientData map[string]interface{}, topUpSrc, betSrc, withdrawalSrc map[string]interface{}, frontCountryId int, userId string) models.ClientData {
+// GetReactivationThreshold получает порог реактивации для неактивного пользователя
+// Вычитает N месяцев из даты последнего действия
+func (c *Controller) GetReactivationThreshold(lastActionTime time.Time, months int) time.Time {
+	// Вычитаем N месяцев из даты последнего действия
+	thresholdDate := lastActionTime.AddDate(0, -months, 0)
+	log.Printf("debug: last action %s - %d months = threshold %s",
+		lastActionTime.Format("2006-01-02"), months, thresholdDate.Format("2006-01-02"))
+	return thresholdDate
+}
+
+// GetLastActionDate получает дату последнего действия пользователя
+func (c *Controller) GetLastActionDate(actions []map[string]interface{}) (time.Time, bool) {
+	if len(actions) == 0 {
+		return time.Time{}, false
+	}
+
+	// Берем последнее действие (самое свежее)
+	lastActionTimestamp := repositories.GetCreatedAt(actions[0]) // actions уже отсортированы по убыванию
+	if lastActionTimestamp == 0 {
+		return time.Time{}, false
+	}
+
+	return time.Unix(lastActionTimestamp, 0), true
+}
+
+// В BuildClientData убираем отдельный параметр reactivationMonths - используем тот же months
+func (c *Controller) BuildClientData(clientData map[string]interface{}, topUpSrc, betSrc, withdrawalSrc map[string]interface{}, frontCountryId int, userId string, actions []map[string]interface{}, months int) models.ClientData {
 	cd := models.ClientData{
-		Account:        models.Account{ActiveWallet: "", Balance: 0, CurrencyId: 0},
-		LastTopUp:      repositories.GetCreatedAt(topUpSrc),
-		LastBet:        repositories.GetCreatedAt(betSrc),
-		LastWithdrawal: repositories.GetCreatedAt(withdrawalSrc),
-		CreatedAt:      0,
-		UserId:         userId,
-		LastActivity:   0,
+		Account:               models.Account{ActiveWallet: "", Balance: 0, CurrencyId: 0},
+		LastTopUp:             repositories.GetCreatedAt(topUpSrc),
+		LastBet:               repositories.GetCreatedAt(betSrc),
+		LastWithdrawal:        repositories.GetCreatedAt(withdrawalSrc),
+		CreatedAt:             0,
+		UserId:                userId,
+		LastActivity:          0,
+		ReactivationThreshold: 0,     // Порог реактивации (lastActivity - months)
+		CanReactivate:         false, // Новое поле - можно ли реактивировать
 	}
 
 	var maxActivity int64
@@ -170,6 +196,25 @@ func (c *Controller) BuildClientData(clientData map[string]interface{}, topUpSrc
 			userId, time.Unix(maxActivity, 0).Format("2006-01-02"), lastActionType,
 			cd.LastTopUp, cd.LastBet, cd.LastWithdrawal)
 	}
+
+	// Вычисляем порог реактивации для неактивных пользователей (используем тот же months)
+	if len(actions) > 0 && months > 0 {
+		lastActionDate, ok := c.GetLastActionDate(actions)
+		if ok {
+			thresholdDate := c.GetReactivationThreshold(lastActionDate, months) // Используем тот же months!
+			cd.ReactivationThreshold = thresholdDate.Unix()
+
+			// Проверяем, можно ли реактивировать (текущее время > порог)
+			currentTime := time.Now()
+			cd.CanReactivate = currentTime.After(thresholdDate) || currentTime.Equal(thresholdDate)
+
+			log.Printf("debug: user %s - lastActivity: %s, threshold: %s, canReactivate: %t (months=%d)",
+				userId, lastActionDate.Format("2006-01-02"), thresholdDate.Format("2006-01-02"),
+				cd.CanReactivate, months)
+		}
+	}
+
+	// ... остальная логика заполнения полей остается без изменений ...
 
 	if clientData != nil {
 		if user, ok := clientData["user"].(map[string]interface{}); ok {
