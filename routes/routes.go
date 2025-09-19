@@ -6,15 +6,11 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-// SetupRoutes настраивает маршруты для Fiber.
 func SetupRoutes(app *fiber.App, handler *handlers.Handler) {
-	// Health check
 	app.Get("/health", handler.HealthCheck)
 
-	// Основной эндпоинт - ТОЛЬКО months!
 	app.Get("/process-users", handler.ProcessUsers)
 
-	// Корневой маршрут с упрощенной документацией
 	app.Get("/", func(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusOK).JSON(fiber.Map{
 			"message": "User Actions API",

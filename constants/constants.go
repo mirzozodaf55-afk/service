@@ -1,6 +1,5 @@
 package constants
 
-// Indices — карта индексов -> поле содержащие createdAt внутри документа.
 var Indices = map[string]string{
 	"client_online_top_ups-searcher":     "entity",
 	"client_withdrawals-searcher":        "withdrawal",
@@ -10,19 +9,16 @@ var Indices = map[string]string{
 	"client_online_withdrawals-searcher": "withdrawal",
 }
 
-// TopUpIndices — индексы, которые считаем "топапами".
 var TopUpIndices = []string{
 	"client_online_top_ups-searcher",
 	"terminal_transactions-searcher",
 	"cashier_cards-searcher",
 }
 
-// BetIndices — индексы ставок.
 var BetIndices = []string{
 	"client_bets-searcher",
 }
 
-// WithdrawalIndices — индексы выводов.
 var WithdrawalIndices = []string{
 	"client_online_withdrawals-searcher",
 	"client_withdrawals-searcher",

@@ -14,12 +14,10 @@ import (
 	"github.com/opensearch-project/opensearch-go"
 )
 
-// toInt64 конвертирует строку в int64.
 func toInt64(s string) (int64, error) {
 	return strconv.ParseInt(s, 10, 64)
 }
 
-// doSearch выполняет поисковый запрос и возвращает SearchResponse.
 func doSearch(client *opensearch.Client, index string, query map[string]interface{}) (*models.SearchResponse, error) {
 	body, err := json.Marshal(query)
 	if err != nil {
@@ -42,7 +40,6 @@ func doSearch(client *opensearch.Client, index string, query map[string]interfac
 	return &sr, nil
 }
 
-// GetUserIds получает список userId из clients-searcher.
 func GetUserIds(client *opensearch.Client, from, size, countryId int) ([]string, error) {
 	query := map[string]interface{}{
 		"_source": []string{"stats.userId"},
@@ -77,7 +74,6 @@ func GetUserIds(client *opensearch.Client, from, size, countryId int) ([]string,
 	return ids, nil
 }
 
-// GetClientById получает данные клиента по userId.
 func GetClientById(client *opensearch.Client, userIdStr string, countryId int) (map[string]interface{}, error) {
 	userIdInt, err := toInt64(userIdStr)
 	if err != nil {
@@ -131,7 +127,6 @@ func GetClientById(client *opensearch.Client, userIdStr string, countryId int) (
 	return nil, nil
 }
 
-// GetActionsFromIndexNoCountry получает действия без фильтра по стране.
 func GetActionsFromIndexNoCountry(client *opensearch.Client, userIdStr string, index string, size int) ([]map[string]interface{}, error) {
 	userIdInt, err := toInt64(userIdStr)
 	if err != nil {
@@ -163,7 +158,6 @@ func GetActionsFromIndexNoCountry(client *opensearch.Client, userIdStr string, i
 	return out, nil
 }
 
-// GetActionsFromIndex получает последние N документов по индексу для userId.
 func GetActionsFromIndex(client *opensearch.Client, userIdStr string, index string, size, countryId int) ([]map[string]interface{}, error) {
 	userIdInt, err := toInt64(userIdStr)
 	if err != nil {
@@ -201,7 +195,6 @@ func GetActionsFromIndex(client *opensearch.Client, userIdStr string, index stri
 	return out, nil
 }
 
-// GetCreatedAt извлекает createdAt из документа.
 func GetCreatedAt(source map[string]interface{}) int64 {
 	if source == nil {
 		return 0

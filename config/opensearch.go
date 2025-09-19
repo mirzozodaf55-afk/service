@@ -1,14 +1,76 @@
 package config
 
 import (
+	"fmt"
+	"log"
+	"os"
+
+	"github.com/joho/godotenv"
 	"github.com/opensearch-project/opensearch-go"
 )
 
-// NewOpenSearchClient создает новый клиент OpenSearch.
+// OpenSearchConfig содержит конфигурацию OpenSearch
+type OpenSearchConfig struct {
+	Host     string
+	Username string
+	Password string
+}
+
+// LoadOpenSearchConfig загружает конфигурацию OpenSearch из .env
+func LoadOpenSearchConfig() (*OpenSearchConfig, error) {
+	// Загружаем .env файл (если он есть)
+	if err := godotenv.Load(); err != nil {
+		log.Printf("warning: .env file not found, using environment variables")
+	}
+
+	// Получаем переменные окружения
+	host := os.Getenv("OPENSEARCH_HOST")
+	username := os.Getenv("OPENSEARCH_USERNAME")
+	password := os.Getenv("OPENSEARCH_PASSWORD")
+
+	// Валидация обязательных переменных
+	if host == "" {
+		return nil, fmt.Errorf("OPENSEARCH_HOST is required")
+	}
+	if username == "" {
+		return nil, fmt.Errorf("OPENSEARCH_USERNAME is required")
+	}
+	if password == "" {
+		return nil, fmt.Errorf("OPENSEARCH_PASSWORD is required")
+	}
+
+	config := &OpenSearchConfig{
+		Host:     host,
+		Username: username,
+		Password: password,
+	}
+
+	log.Printf("info: OpenSearch config loaded - host: %s, username: %s", host, username)
+	return config, nil
+}
+
+// NewOpenSearchClient создает новый клиент OpenSearch из .env
 func NewOpenSearchClient() (*opensearch.Client, error) {
-	return opensearch.NewClient(opensearch.Config{
-		Addresses: []string{"https://vpc-formula55-yf46aaczgealfueyceomyztxgm.eu-west-1.es.amazonaws.com"},
-		Username:  "admin",
-		Password:  "Dev4F55DyuTJK!",
+	config, err := LoadOpenSearchConfig()
+	if err != nil {
+		return nil, fmt.Errorf("failed to load OpenSearch config: %w", err)
+	}
+
+	client, err := opensearch.NewClient(opensearch.Config{
+		Addresses: []string{config.Host},
+		Username:  config.Username,
+		Password:  config.Password,
 	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to create OpenSearch client: %w", err)
+	}
+
+	// Проверяем подключение
+	_, err = client.Ping()
+	if err != nil {
+		return nil, fmt.Errorf("failed to ping OpenSearch: %w", err)
+	}
+
+	log.Println("info: OpenSearch client connected successfully")
+	return client, nil
 }
