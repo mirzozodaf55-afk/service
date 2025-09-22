@@ -29,16 +29,6 @@ func SetupRoutes(app *fiber.App, handler *handlers.Handler) {
 					"logic":   "Для каждого неактивного пользователя: lastActivity - months = reactivationThreshold",
 				},
 			},
-			"response": fiber.Map{
-				"inactiveUsers": "Список неактивных пользователей с порогом реактивации",
-				"fields": fiber.Map{
-					"userId":                "ID пользователя",
-					"lastActivity":          "Unix timestamp последней активности",
-					"reactivationThreshold": "Unix timestamp порога реактивации (lastActivity - months)",
-					"canReactivate":         "Логическое поле - можно ли реактивировать (текущее время > порог)",
-					// ... другие поля
-				},
-			},
 		})
 	})
 }

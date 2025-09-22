@@ -14,12 +14,10 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-// Handler управляет HTTP-запросами.
 type Handler struct {
 	ctrl *controller.Controller
 }
 
-// NewHandler создает новый экземпляр Handler.
 func NewHandler(ctrl *controller.Controller) *Handler {
 	return &Handler{ctrl: ctrl}
 }
