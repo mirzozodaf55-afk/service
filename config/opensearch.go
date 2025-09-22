@@ -9,26 +9,20 @@ import (
 	"github.com/opensearch-project/opensearch-go"
 )
 
-// OpenSearchConfig содержит конфигурацию OpenSearch
 type OpenSearchConfig struct {
 	Host     string
 	Username string
 	Password string
 }
 
-// LoadOpenSearchConfig загружает конфигурацию OpenSearch из .env
 func LoadOpenSearchConfig() (*OpenSearchConfig, error) {
-	// Загружаем .env файл (если он есть)
 	if err := godotenv.Load(); err != nil {
 		log.Printf("warning: .env file not found, using environment variables")
 	}
-
-	// Получаем переменные окружения
 	host := os.Getenv("OPENSEARCH_HOST")
 	username := os.Getenv("OPENSEARCH_USERNAME")
 	password := os.Getenv("OPENSEARCH_PASSWORD")
 
-	// Валидация обязательных переменных
 	if host == "" {
 		return nil, fmt.Errorf("OPENSEARCH_HOST is required")
 	}
@@ -49,7 +43,6 @@ func LoadOpenSearchConfig() (*OpenSearchConfig, error) {
 	return config, nil
 }
 
-// NewOpenSearchClient создает новый клиент OpenSearch из .env
 func NewOpenSearchClient() (*opensearch.Client, error) {
 	config, err := LoadOpenSearchConfig()
 	if err != nil {
@@ -65,7 +58,6 @@ func NewOpenSearchClient() (*opensearch.Client, error) {
 		return nil, fmt.Errorf("failed to create OpenSearch client: %w", err)
 	}
 
-	// Проверяем подключение
 	_, err = client.Ping()
 	if err != nil {
 		return nil, fmt.Errorf("failed to ping OpenSearch: %w", err)
