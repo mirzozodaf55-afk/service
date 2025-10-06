@@ -7,9 +7,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"strconv"
-	_ "sync"
+	"time"
 
 	"github.com/opensearch-project/opensearch-go"
 )
@@ -19,24 +20,36 @@ func toInt64(s string) (int64, error) {
 }
 
 func doSearch(client *opensearch.Client, index string, query map[string]interface{}) (*models.SearchResponse, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
 	body, err := json.Marshal(query)
 	if err != nil {
 		return nil, err
 	}
+
 	res, err := client.Search(
-		client.Search.WithContext(context.Background()),
+		client.Search.WithContext(ctx),
 		client.Search.WithIndex(index),
 		client.Search.WithBody(bytes.NewReader(body)),
 	)
 	if err != nil {
+		log.Printf("Search request error: %v", err)
 		return nil, err
 	}
 	defer res.Body.Close()
 
-	var sr models.SearchResponse
-	if err := json.NewDecoder(res.Body).Decode(&sr); err != nil {
-		return nil, err
+	rawBody, _ := io.ReadAll(res.Body)
+
+	if res.StatusCode != 200 {
+		return nil, fmt.Errorf("server returned status %d: %s", res.StatusCode, string(rawBody))
 	}
+
+	var sr models.SearchResponse
+	if err := json.Unmarshal(rawBody, &sr); err != nil {
+		return nil, fmt.Errorf("failed to parse search response: %v", err)
+	}
+
 	return &sr, nil
 }
 
@@ -46,7 +59,6 @@ func GetUserIds(client *opensearch.Client, from, size, countryId int) ([]string,
 		"from":    from,
 		"size":    size,
 	}
-
 	if countryId != 0 {
 		query["query"] = map[string]interface{}{
 			"bool": map[string]interface{}{
@@ -79,18 +91,14 @@ func GetClientById(client *opensearch.Client, userIdStr string, countryId int) (
 	if err != nil {
 		return nil, err
 	}
-	must := []map[string]interface{}{
-		{"term": map[string]interface{}{"stats.userId": userIdInt}},
-	}
-	if countryId != 0 {
-		must = append(must, map[string]interface{}{"term": map[string]interface{}{"user.countryId": countryId}})
-	}
 
 	query := map[string]interface{}{
 		"size": 1,
 		"query": map[string]interface{}{
 			"bool": map[string]interface{}{
-				"must": must,
+				"must": []map[string]interface{}{
+					{"term": map[string]interface{}{"stats.userId": userIdInt}},
+				},
 			},
 		},
 	}
@@ -106,22 +114,11 @@ func GetClientById(client *opensearch.Client, userIdStr string, countryId int) (
 		if user, ok := source["user"].(map[string]interface{}); !ok || user["createdAt"] == nil {
 			log.Printf("warn: user document missing createdAt for userId: %s", userIdStr)
 		}
-		return source, nil
-	}
 
-	if countryId != 0 {
-		log.Printf("debug: client not found with country filter for %s, trying without country", userIdStr)
-		query["query"].(map[string]interface{})["bool"].(map[string]interface{})["must"] = []map[string]interface{}{
-			{"term": map[string]interface{}{"stats.userId": userIdInt}},
+		if countryId != 0 {
+			log.Printf("debug: client found for %s (country filter ignored due to mismatch or absence)", userIdStr)
 		}
-		sr, err = doSearch(client, "clients-searcher", query)
-		if err != nil {
-			return nil, err
-		}
-		if len(sr.Hits.Hits) > 0 {
-			log.Printf("debug: found client without country filter for %s", userIdStr)
-			return sr.Hits.Hits[0].Source, nil
-		}
+		return source, nil
 	}
 
 	return nil, nil
